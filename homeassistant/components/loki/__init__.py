@@ -13,13 +13,13 @@ from typing import Optional
 
 import requests
 
+from homeassistant.components.websocket_api.messages import message_to_json
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     EVENT_HOMEASSISTANT_STOP,
-    EVENT_STATE_CHANGED,
+    MATCH_ALL,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
-    Platform,
 )
 from homeassistant.core import HomeAssistant, callback
 
@@ -81,7 +81,7 @@ class LokiThread(threading.Thread):
         self.max_tries = max_tries
         self.write_errors = 0
         self.shutdown = False
-        hass.bus.async_listen(EVENT_STATE_CHANGED, self._event_listener)
+        hass.bus.async_listen(MATCH_ALL, self._event_listener)
         self._session: requests.Session | None = None
 
     @property
@@ -105,10 +105,18 @@ class LokiThread(threading.Thread):
 
     def event_to_json(self, event: dict) -> str:
         """Convert event to json"""
-        state = event.data.get("new_state")
-        if state is None or state.state in (STATE_UNKNOWN, "", STATE_UNAVAILABLE):
-            return
-        return json.dumps(state.as_dict())
+        return message_to_json(event)
+        # if event.event_type == "state_changed":
+        #     state = event.data.get("new_state")
+        #     if state is not None and state.state not in (
+        #         STATE_UNKNOWN,
+        #         "",
+        #         STATE_UNAVAILABLE,
+        #     ):
+        #         return message_to_json(event_message(IDEN_TEMPLATE, event))
+        #         return json.dumps(state.as_dict(), default=str)
+        # if event.event_type == "zha_event":
+        #     return json.dumps(event.data)
 
     def get_events_json(self):
         """Return a batch of events formatted for writing."""
